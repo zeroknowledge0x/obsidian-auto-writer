@@ -99,7 +99,8 @@ Before writing ANY note, retrieve existing context:
 ```bash
 # Search vault for related existing notes
 cd /root/Documents/ObsidianVault
-grep -rl "<topic-keyword>" obsidian-vault/ --include="*.md" | grep -v ".git" | head -5
+# Replace KEYWORD with actual topic from conversation (e.g., "poker", "ZKA Framework", "trading")
+grep -rl "KEYWORD" obsidian-vault/ --include="*.md" | grep -v ".git" | head -5
 ```
 
 For each match found:
@@ -129,15 +130,19 @@ For each substantive topic, write to the correct folder:
 
 ### B. Auto-Create Project Folders
 
-When you encounter a topic that IS a project (tool, bot, framework, game, agent, repo) — CREATE a folder for it immediately. Don't wait, don't count mentions, don't ask.
+When you encounter a topic that IS a project (tool, bot, framework, game, agent, repo):
 
-If it's a project → `Projects/<project-name>/`
-If it's work → `Work/<work-name>/`
-If it's kuliah → `Kuliah/<topic>/`
+**First mention** → create lightweight flat file: `Projects/<name>.md` with summary + key points
+**Mentions 3+ times in 7 days** → upgrade to folder: `Projects/<name>/README.md`
 
-Every project folder MUST have a README.md:
+If it's work → `Work/<name>.md` (first), then `Work/<name>/README.md` (3+)
+If it's kuliah → `Kuliah/<topic>.md` (first), then `Kuliah/<topic>/README.md` (3+)
+
+When upgrading to folder:
 ```bash
 mkdir -p "obsidian-vault/Projects/<project-name>"
+# Move content from flat .md to README.md inside folder
+mv "obsidian-vault/Projects/<project-name>.md" "obsidian-vault/Projects/<project-name>/README.md"
 ```
 
 ```markdown
@@ -272,10 +277,10 @@ D. Proposal rules: never auto-execute, wait for approval. Don't create new while
 
 ## Step 7: Metrics Tracking (Self-Evolution Data)
 
-After every run, append metrics to Fact Store:
+After every run, append metrics to Fact Store as JSON (for GEPA self-evolution parsing):
 
 ```bash
-/opt/hermes-venv/bin/python3 /root/.hermes/scripts/fact-store-helper.py add   "Run metrics: [N] notes written, [N] links added, [N] duplicates avoided, [N] TODOs executed"   --category general --tags "metrics,run"
+/opt/hermes-venv/bin/python3 /root/.hermes/scripts/fact-store-helper.py add   '{"run_ts":"YYYY-MM-DDTHH:MMZ","notes_written":N,"notes_updated":N,"links_added":N,"duplicates_avoided":N,"todos_executed":N,"todos_blocked":N,"facts_added":N}'   --category metrics --tags "metrics,run,json"
 ```
 
 Track per-run:
