@@ -95,26 +95,25 @@ Write current timestamp after processing.
 
 ## Step 3B: Vault Pre-Retrieval (MANDATORY)
 
-Before writing ANY note, retrieve existing context:
+Before writing ANY note, semantic search existing vault:
 
 ```bash
-# Search vault for related existing notes
-cd /root/Documents/ObsidianVault
-# Set KEYWORD to the PRIMARY topic being processed in this step, extracted from the conversation.
-# Example: if discussing poker → KEYWORD="poker", if discussing ZKA Framework → KEYWORD="ZKA Framework"
-grep -rl "KEYWORD" obsidian-vault/ --include="*.md" | grep -v ".git" | head -5
+# For each topic being processed:
+python3 /root/.hermes/scripts/vault-embedder.py search "TOPIC" --limit 5
+```
+Replace TOPIC with the primary subject from current conversation.
+
+For each result returned (score > 0.5):
+1. Read the note (first 50 lines)
+2. If overlap → UPDATE existing note, don't create new
+3. If related → ADD wikilink cross-reference
+
+Fallback (if vault-embedder fails):
+```bash
+grep -rl "TOPIC" /root/Documents/ObsidianVault/obsidian-vault/ --include="*.md" | grep -v ".git" | head -5
 ```
 
-For each match found:
-1. Read the note (first 50 lines)
-2. Check if content overlaps with what you're about to write
-3. If overlap → UPDATE existing note instead of creating new
-4. If related but different → ADD wikilink cross-reference
-
-This prevents:
-- Duplicate notes about same topic
-- Fragmented knowledge across multiple files
-- Missing connections between related notes
+This prevents duplicate notes and ensures vault knowledge is connected.
 
 ## Step 4: Process Obsidian Vault
 

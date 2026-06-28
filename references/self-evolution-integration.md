@@ -1,54 +1,51 @@
-# Self-Evolution Integration for Obsidian Auto-Writer
+# Self-Evolution Integration with Obsidian Auto-Writer
 
 ## Overview
-`hermes-agent-self-evolution` (DSPy + GEPA) can auto-optimize the memory-processor prompt based on execution traces.
+Use `hermes-agent-self-evolution` (DSPy + GEPA) to auto-optimize memory-processor prompt based on execution traces.
 
-## Installed
-- Repo: `/root/hermes-agent-self-evolution`
-- Dependencies: DSPy 3.2.1, GEPA 0.0.27, LiteLLM 1.90.0
-- Install: `pip3 install -e /root/hermes-agent-self-evolution`
+## Status (2026-06-28)
+- ✅ Installed: `pip install -e .` from `/root/hermes-agent-self-evolution`
+- ✅ DSPy 3.2.1 + GEPA 0.0.27 + LiteLLM 1.90.0
+- ⏳ Waiting for 10+ runs with JSON metrics before first optimization
+- ⏳ Evaluation dataset not yet built
 
-## Architecture
-```
-memory-processor run → execution trace (report output)
-    ↓
-Self-Evolution reads trace → detect failure pattern
-    ↓
-GEPA proposes mutations → e.g. "add rule X to Step 4"
-    ↓
-Evaluate → is output better?
-    ↓
-Best variant → update prompt/skill
-    ↓
-Repeat
-```
-
-## What to Optimize
-1. **Prompt clarity** — reduce misclassification of TODOs
-2. **Project detection** — auto-create folders more reliably
-3. **Fact extraction** — better granularity, fewer misses
-4. **Linking heuristic** — cross-reference accuracy
+## How It Works
+1. Memory processor runs → outputs JSON metrics to Fact Store
+2. After 10+ runs → collect metrics as evaluation dataset
+3. GEPA mutates prompt (add/remove/reorder rules)
+4. Evaluate each mutation against metrics
+5. Select best variant → replace prompt
+6. Repeat
 
 ## Cost
 - Mimo v2.5 Pro: ~$0.20-0.50 per optimization run
 - GPT-4: ~$2-10 per run
 - Claude Sonnet: ~$1-3 per run
 
-## Data Source
-Step 7 (Metrics Tracking) logs per-run data to Fact Store:
-- Notes created vs updated
-- Wikilinks added
-- Duplicates avoided
-- TODO execution rate
+## Metrics Format (JSON for GEPA parsing)
+```json
+{
+  "run_ts": "2026-06-28T14:00Z",
+  "notes_written": 3,
+  "notes_updated": 5,
+  "links_added": 7,
+  "duplicates_avoided": 2,
+  "todos_executed": 2,
+  "todos_blocked": 1,
+  "facts_added": 5
+}
+```
 
-This data powers the evolution loop.
+## Trigger Optimization
+```bash
+cd /root/hermes-agent-self-evolution
+# Run optimization with mimo-v2.5-pro
+python3 -m hermes_self_evolution.optimize \
+  --prompt /root/.hermes/scripts/memory-processor-prompt.md \
+  --metrics-source fact-store \
+  --model xiaomi/mimo-v2.5-pro \
+  --generations 5
+```
 
-## Status (2026-06-28)
-- Installed but not yet configured
-- Needs: model provider config, evaluation dataset from 10+ runs
-- Target: push success_rate from 61% to 80%+
-
-## Combo with Other Systems
-- RAG pipeline (vault embedding) → better context for evolution
-- Auto-linking → provides linking accuracy metric for evolution
-- Metrics tracking → provides raw data for evaluation
+## Key Insight
+Self-evolution needs CONSISTENT metrics format. If metrics change format between runs, GEPA can't parse them. Always use the JSON schema above.

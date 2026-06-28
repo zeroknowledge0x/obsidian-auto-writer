@@ -353,6 +353,16 @@ cd /root/Documents/ObsidianVault && git stash && git pull && git stash pop
 3. Scroll into user sessions directly using their session_id
 **Rule:** When session_search discovery mode returns cron sessions as top results, switch to browse mode and filter by source. Don't keep re-querying with different keywords — the cron prompt will match almost anything.
 
+### session_search: can't scroll into user sessions when cron dominates ALL queries (June 2026)
+**Symptom:** Browse mode shows a user session exists (e.g., "Adding BadTheoryLabs API Provider #41", 275 messages), but every discover query returns cron sessions as top results. You have the `session_id` from browse but no `match_message_id` to scroll into it. Trying `session_search(session_id=X, around_message_id=999999)` fails because 999999 isn't a real message ID. Trying queries like the session title still returns cron results.
+**Cause:** The cron prompt is so large and keyword-rich that FTS5 matches it against almost any topic query. When ALL discover results are cron sessions, you can never obtain a valid `match_message_id` for the user session.
+**Workaround (incomplete):**
+1. If the user session's `preview` field from browse mode contains useful text → use that as context
+2. If a previous cron run already processed this session → check `Daily/YYYY-MM-DD.md` for what was recorded
+3. If neither → treat the session as opaque. Report "unable to read session content" rather than guessing
+4. **Do NOT** fabricate content you couldn't actually read. If you can't scroll in, say so.
+**Rule:** When you have a session_id but can't get a match_message_id for it, do NOT pretend you processed it. The browse preview and previous run's Daily notes are your only sources. If those are empty/stale, acknowledge the gap.
+
 ### Vault path: nested `obsidian-vault/` folder (June 2026)
 **What happened:** Vault repo restructured so all vault content lives under `obsidian-vault/` subfolder instead of repo root. Root only has `.gitignore`, `.obsidian`, and `obsidian-vault/`.
 **File locations:** `Jadwal Kuliah.md` → `obsidian-vault/Kuliah/Jadwal Kuliah.md`, `TODO.md` → `obsidian-vault/TODO.md`, etc.
@@ -413,6 +423,12 @@ cd /root/Documents/ObsidianVault && git stash && git pull && git stash pop
 - Process dead + NO results → mark as BLOCKED with reason: "process no longer exists, no results found, user needs to re-run"
 - Process alive + still running → leave as BLOCKED with "still running, check next run"
 **Example (2026-06-27):** TODO "Monitor B5D v2 vs-field test" — tmux session `s5-runner` no longer exists, no vs-field results file found. Updated to BLOCKED with explicit reason.
+
+### TODO "Next: AGENT" doesn't auto-reclassify from BLOCKED to CAN EXECUTE
+**Pattern:** A TODO is marked BLOCKED (e.g., "build timed out at 120s") with `Next: AGENT — retry with 300s timeout`. The agent sees this but keeps the status as BLOCKED because the vault explicitly says BLOCKED.
+**Problem:** The "Next" field describes what should happen, but the agent treats the Status field as authoritative. This creates a deadlock: the TODO says "AGENT should retry" but the agent won't because status is BLOCKED.
+**Rule:** When `Next:` says AGENT and the blocker is something the agent can overcome (longer timeout, different approach, retry), reclassify to CAN EXECUTE and attempt. Only keep BLOCKED if the blocker is genuinely external (missing resource, user action, dead process with no results).
+**Anti-pattern:** Keeping a TODO as BLOCKED when the "Next" field explicitly says AGENT can retry — this is the agent deferring to its own previous classification instead of reading the intent.
 
 ### Prompt too long → LLM skips report section (June 2026)
 **Symptom:** Memory processor cronjob delivers only a GROWTH status snippet (`GROWTH: APPRENTICE — reliable with guidance`) instead of the full report format.
@@ -693,12 +709,19 @@ The full report format below IS the required deliverable. Output every section.
 ### GROWTH line removal (June 2026)
 **Symptom:** Memory processor outputs only `GROWTH: APPRENTICE — Apprentice — reliable with guidance` instead of full report.
 **Root cause:** Prompt ended with GROWTH line text. Model interpreted it as desired output format and stopped there.
-**Fix:** Remove GROWTH line from prompt end. Track growth metrics via Fact Store instead.
-**UPDATE (2026-06-28):** GROWTH also comes from MEMORY.md in system prompt — model reads "GROWTH: APPRENTICE" from MEMORY and outputs it. Fact Store entry #28 ("Growth level: APPRENTICE") also contaminates. Fix: (1) Remove GROWTH from MEMORY.md, (2) Add "DO NOT output Fact Store growth entries as response" to RULE OVERRIDE, (3) Track via Fact Store only.
+**Fix:** Remove GROWTH line from prompt end. Track growth metrics via Fact Store instead:
 ```bash
 /opt/hermes-venv/bin/python3 /root/.hermes/scripts/fact-store-helper.py add "Memory processor: promoted_patterns=[list] success_rate=N% interactions=N" --category general --tags "memory-processor,growth"
 ```
 **Rule:** Never put example output text at the END of a prompt — model may copy it as final response. Put the actual report format at the TOP.
+
+### GROWTH contamination from Fact Store AND MEMORY.md (2026-06-28)
+**Symptom:** Even after removing GROWTH from prompt, model still outputs `GROWTH: APPRENTICE` line.
+**Root cause:** (1) Fact Store entry #28 contains "Growth level: APPRENTICE" — model searches Fact Store, finds it, outputs as response. (2) MEMORY.md in system prompt may contain growth tracking text — model reads and outputs it.
+**Fix:** (1) Add explicit rule to RULE OVERRIDE: "DO NOT output Fact Store growth entries (e.g., 'Growth level: APPRENTICE') as your response." (2) Remove any GROWTH tracking text from MEMORY.md. (3) Keep growth tracking ONLY in Fact Store with `--tags "growth"`.
+**Prompt fix location:** First 5 lines of memory-processor-prompt.md (RULE OVERRIDE section).ause:** (1) Fact Store entry #28 contains "Growth level: APPRENTICE" — model searches Fact Store, finds it, outputs as response. (2) MEMORY.md in system prompt may contain growth tracking text — model reads and outputs it.
+**Fix:** (1) Add explicit rule to RULE OVERRIDE: "DO NOT output Fact Store growth entries (e.g., 'Growth level: APPRENTICE') as your response." (2) Remove any GROWTH tracking text from MEMORY.md. (3) Keep growth tracking ONLY in Fact Store with `--tags "growth"`.
+**Prompt fix location:** First 5 lines of memory-processor-prompt.md (RULE OVERRIDE section).
 
 ### Report format at TOP of prompt (June 2026)
 **Learning:** Model reads the first section of a prompt most reliably. If the report format is at the bottom (after long instructions), model may not reach it or may output something else.
@@ -744,6 +767,41 @@ The full report format below IS the required deliverable. Output every section.
 **Symptom:** Memory processor report always ends with "To stop or manage this job, send me a new message..."
 **Root cause:** This is NOT model output — it's a Hermes cron delivery footer, appended automatically.
 **Fix:** Do NOT add rules to prompt trying to suppress it. Remove any existing rule about this (Rule #15 was removed). It's a platform feature, not fixable via prompt.
+
+### Fact Store growth entries become model output (June 2026)
+**Symptom:** Cron outputs `GROWTH: APPRENTICE — Apprentice — reliable with guidance` instead of full report, even after GROWTH line removed from prompt.
+**Root cause:** Fact Store has entries like `fact #28: "Growth level: APPRENTICE..."`. Model reads Fact Store during run and outputs the growth entry as its response.
+**Fix:** Add to RULE OVERRIDE section:
+```markdown
+DO NOT output Fact Store growth entries (e.g., "Growth level: APPRENTICE") as your response. The report format above IS your ONLY output format.
+```
+**Rule:** Any Fact Store entry that LOOKS like a status output can be mistaken for the desired response format. Explicitly forbid outputting Fact Store content as response.
+
+### SKILL.md too large for conversation context (June 2026)
+**Symptom:** SKILL.md is 64K+. When loaded in conversation (not cron), consumes massive context window.
+**Root cause:** All pitfalls, lessons, references accumulated in one file.
+**Fix (Claude review):** Restructure:
+- SKILL.md = trigger rules + folder map + frontmatter conventions (~5-8K)
+- templates/memory-processor-prompt.md = canonical cron prompt (already separate)
+- references/ = session-specific detail (already exists)
+For cron, use prompt directly from jobs.json, NOT SKILL.md.
+**Rule:** When skill exceeds ~30K, audit for extraction to references/.
+
+### GitHub review workflow for skill improvement (June 2026)
+**Pattern:** Push skill to public GitHub → share raw URLs with Claude app → Claude reviews → apply patches → push back.
+**Workflow:**
+1. `git init` in skill directory → `git add -A` → `git commit`
+2. `gh repo create <name> --public --source <dir> --push`
+3. Generate raw URLs: `https://raw.githubusercontent.com/<user>/<repo>/master/<path>`
+4. Share URLs with Claude app for review
+5. Claude reviews and suggests patches
+6. Apply patches → `git push`
+**Pitfall:** GitHub raw URL cache — Claude's `web_fetch` may cache old version. Workaround: Claude trusts agent's confirmation of changes applied.
+**Repo:** `zeroknowledge0x/obsidian-auto-writer` (public)
+
+### Don't patch prompt during baseline collection (June 2026)
+**Rule (Claude review):** After major prompt changes, run 10+ times WITHOUT patching. Metrics must reflect consistent behavior for GEPA self-evolution baseline. Only patch if there's a clear failure (e.g., GROWTH output regression).
+**Reason:** If prompt keeps changing, metrics are a "moving target" — GEPA can't establish valid baseline.
 
 ## User Workflow Preferences (from memory-processor sessions, June 2026)
 
