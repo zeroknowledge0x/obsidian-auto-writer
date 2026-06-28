@@ -1,32 +1,35 @@
 # Claude Review Workflow
 
 ## Pattern
-User uses Claude app as external reviewer for Hermes skills/prompts.
+User sends skill/prompt to Claude app for review → Claude returns feedback → Hermes applies fixes → push to GitHub → Claude re-fetches.
 
-## Flow
-1. Hermes builds skill/prompt
-2. User shares raw GitHub URLs with Claude app
-3. Claude reviews → gives feedback + questions
-4. User shares Claude's response with Hermes
-5. Hermes applies fixes based on Claude's review
-6. Push updated files to GitHub
-7. Repeat if needed
+## How to Share Files with Claude
+1. Push skill to GitHub (public repo under user account)
+2. Generate raw URLs: `https://raw.githubusercontent.com/<user>/<repo>/<branch>/<path>`
+3. Claude fetches via `web_fetch` tool
+4. Claude returns review + specific patches
 
-## Rules
-- **READ Claude's actual review FIRST** — don't write your own version
-- Treat Claude's suggestions as authoritative input, not just suggestions
-- Answer Claude's questions directly (e.g., "cron invoke via prompt or skill?")
-- Apply fixes in priority order Claude specifies
-- Push to GitHub after each fix batch so Claude can re-review
+## Key Learnings from Claude Reviews (2026-06-28)
+1. **Report format at TOP** — prevents truncation by lightweight models
+2. **SOUL.md RULE OVERRIDE** — elegant carve-out for cron verbosity
+3. **[SILENT] response** — efficient, no Telegram spam when nothing to process
+4. **Metrics → JSON** — for GEPA self-evolution parsing (not free-text)
+5. **Grep standardization** — use `grep -rl` consistently, not `find | xargs grep`
+6. **Placeholder variables** — need explicit substitution instructions for lightweight models
+7. **Hybrid project creation** — flat `.md` first, upgrade to folder on 3+ mentions
+8. **GROWTH contamination** — comes from MEMORY.md AND Fact Store, not just prompt
+9. **SKILL.md too large (64K)** — split: SKILL.md = triggers/rules only (~5-8K), cron uses prompt directly
 
-## Raw URL format
+## GitHub Push Pattern
+```bash
+cd /root/.hermes/skills/<name>
+git init && git add -A && git commit -m "initial"
+gh repo create <name> --public --source . --push
 ```
-https://raw.githubusercontent.com/zeroknowledge0x/<repo>/master/<path>
-```
+**Pitfall:** Can't push to ZKA-Labs org from zeroknowledge0x account. Use user account directly.
 
-## Session example (2026-06-28)
-Claude reviewed `obsidian-auto-writer` skill (64K SKILL.md + memory-processor-prompt.md):
-- Confirmed: report format at top, SOUL.md carve-out, [SILENT] response, fact-store-helper
-- Flagged: SKILL.md too large, grep placeholder too abstract, project folder over-creation, metrics format not JSON
-- Asked: cron invoke method, vault-timestamp-update.py timing, growth level
-- Hermes answered + applied 3 fixes, pushed to GitHub
+## Cache Busting
+If Claude can't see updated files (web_fetch cache):
+- Add `?t=<timestamp>` to raw URL
+- Or ask Claude to re-fetch after 1 minute
+- Or push to a different branch name

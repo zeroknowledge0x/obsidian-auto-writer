@@ -693,7 +693,8 @@ The full report format below IS the required deliverable. Output every section.
 ### GROWTH line removal (June 2026)
 **Symptom:** Memory processor outputs only `GROWTH: APPRENTICE — Apprentice — reliable with guidance` instead of full report.
 **Root cause:** Prompt ended with GROWTH line text. Model interpreted it as desired output format and stopped there.
-**Fix:** Remove GROWTH line from prompt end. Track growth metrics via Fact Store instead:
+**Fix:** Remove GROWTH line from prompt end. Track growth metrics via Fact Store instead.
+**UPDATE (2026-06-28):** GROWTH also comes from MEMORY.md in system prompt — model reads "GROWTH: APPRENTICE" from MEMORY and outputs it. Fact Store entry #28 ("Growth level: APPRENTICE") also contaminates. Fix: (1) Remove GROWTH from MEMORY.md, (2) Add "DO NOT output Fact Store growth entries as response" to RULE OVERRIDE, (3) Track via Fact Store only.
 ```bash
 /opt/hermes-venv/bin/python3 /root/.hermes/scripts/fact-store-helper.py add "Memory processor: promoted_patterns=[list] success_rate=N% interactions=N" --category general --tags "memory-processor,growth"
 ```
@@ -835,7 +836,9 @@ Don't break into phases unless user asks for phased approach.
 - **Proposal checklist persistence** — proposals must be saved as Obsidian notes, not only shown in Telegram cron output. See `references/proposal-checklist-persistence.md` for path, note template, approval commands, duplicate-prevention rule, and verification markers.
 - **Fact Store Helper Script** — `/root/.hermes/scripts/fact-store-helper.py`. Required because cron sessions can't use `fact_store` tool directly (skip_memory=True). Use `/opt/hermes-venv/bin/python3` to run.
 - **Report quality rules** — every skipped layer must explain WHY. Every pending TODO must explain WHY (BLOCKED/DEFERRED/CAN EXECUTE). No bare "no new X" allowed.
-- **Self-Reflection & Growth** — every run generates PROPOSAL section. Proposals need user approval. Growth levels in fact_store: APPRENTICE → JOURNEYMAN → ARTISAN → MASTER.
+- **Auto-Growth Research** — GitHub repos (obsidian-copilot, smart-connections, auto-researcher), 5 growth patterns, Hermes comparison, self-evolution integration, Dataview assessment. See `references/obsidian-auto-growth-research.md`.
+- **Claude Review Workflow** — Raw GitHub URLs for Claude to fetch, apply patches, push back. See `references/claude-review-workflow.md`.
+- **Self-Evolution Integration** — DSPy + GEPA combo with memory-processor. See `references/self-evolution-integration.md`.
 - If `memory-processor` is the active Obsidian writer/sync path, old dedicated vault `auto-push` / `auto-pull` cronjobs are optional and can create Git conflict risk. Prefer one active sync owner.
 - **Daily reports** — exactly one daily note per date (`Daily/YYYY-MM-DD.md`). See `references/daily-report-workflow.md`.
 - **Mobile sync troubleshooting** — when server/GitHub has a note but Obsidian iPhone still does not show it, verify via authenticated GitHub API for private repos, then switch to iPhone-side pull/re-clone steps. See `references/mobile-sync-troubleshooting.md`.
