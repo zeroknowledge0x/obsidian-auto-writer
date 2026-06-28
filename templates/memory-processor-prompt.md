@@ -99,7 +99,8 @@ Before writing ANY note, retrieve existing context:
 ```bash
 # Search vault for related existing notes
 cd /root/Documents/ObsidianVault
-# Replace KEYWORD with actual topic from conversation (e.g., "poker", "ZKA Framework", "trading")
+# Set KEYWORD to the PRIMARY topic being processed in this step, extracted from the conversation.
+# Example: if discussing poker → KEYWORD="poker", if discussing ZKA Framework → KEYWORD="ZKA Framework"
 grep -rl "KEYWORD" obsidian-vault/ --include="*.md" | grep -v ".git" | head -5
 ```
 
@@ -178,9 +179,10 @@ Rules:
 After writing/updating ANY note, auto-link it:
 
 ```bash
-# Find all note titles in vault
+# Find related notes using same pattern as Step 3B
 cd /root/Documents/ObsidianVault
-find obsidian-vault/ -name "*.md" -not -path "*/.git/*" | xargs grep -l "<topic>" | head -10
+# Set KEYWORD to the topic being written about (same as Step 3B)
+grep -rl "KEYWORD" obsidian-vault/ --include="*.md" | grep -v ".git" | head -10
 ```
 
 For each related note found:

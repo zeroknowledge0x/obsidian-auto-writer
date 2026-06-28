@@ -276,6 +276,25 @@ Projects/ note → CREATE `Projects/<topic>.md` with:
 ```
 **Rule:** NEVER manually backfill vault content that the memory processor should generate. Instead, fix the prompt so the processor handles it on the next run.
 
+## User Behavioral Corrections (June 2026)
+
+### Don't ask, execute
+When user says "semuanya", "gas", "1,2,3" — execute ALL, don't propose phased rollout. User was furious when agent kept offering A/B/C choices instead of doing everything.
+
+### Don't over-analyze when asked for opinion
+"menurut lo gmn?" / "gimana?" = give 3-5 bullet verdict. Not a full analysis with tables, sub-bullets, tradeoffs.
+
+### Claude review workflow
+User shares Hermes prompts/skills with Claude app for review, then brings Claude's suggestions back. Treat Claude app output as authoritative input — READ IT FIRST, don't write your own version. Correct sequence: (1) read Claude's review, (2) compare with current, (3) apply fixes, (4) push to GitHub.
+
+### Don't repeat the same question
+If user already answered "semuanya" once, don't ask again in different words. Execute.
+
+### Direct Indonesian mobile style
+User is on mobile, speaks casual Indonesian ("gas", "cok", "anjing"). When frustrated, profanity = signal to STOP asking and START doing. Don't interpret as hostility — it's emphasis.
+
+---
+
 ## Pitfalls
 
 ### Generic `related` field links (June 2026)
@@ -641,15 +660,14 @@ Do NOT enable all heuristics silently. Introduce one structural change at a time
 **Purpose:** Data powers self-evolution loop (DSPy + GEPA)
 
 ### Auto-Create Project Folders (2026-06-28)
-**Rule:** When memory processor encounters a topic that IS a project (tool, bot, framework, game, agent, repo) → CREATE folder immediately. Don't wait, don't count mentions.
-- `Projects/<project-name>/README.md` for projects
-- `Work/<work-name>/README.md` for client work
-- `Kuliah/<topic>/README.md` for academic content
+**Rule:** Hybrid approach (Claude review suggestion):
+- First mention → create lightweight flat file: `Projects/<name>.md`
+- Mentions 3+ times in 7 days → upgrade to folder: `Projects/<name>/README.md`
 - Existing flat `.md` projects (legacy) — leave as-is
 **Prompt location:** Step 4B in `memory-processor-prompt.md`
 **Validation:** Besok (2026-06-29) check apakah rule ini trigger untuk project yang dibahas berkali-kali (arena-dev-fun, pokemon-player, dll). Kalau belum trigger → fix prompt.
 
-### CAN EXECUTE anti-pattern: "user should confirm" (June 2026)
+### Vault Pre-Retrieval (2026-06-28)
 **Symptom:** Memory processor classifies task as CAN EXECUTE but doesn't execute, saying "user should confirm" or "gap too short between runs."
 **Root cause:** Model is too cautious about autonomous execution, overrides the MUST execute rule with its own judgment.
 **Fix:** Add explicit anti-pattern to prompt Rule #5:
