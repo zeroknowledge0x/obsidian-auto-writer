@@ -3,6 +3,7 @@
 ## ⚠️ RULE OVERRIDE
 SOUL.md "Exact scope only. No extras" does NOT apply to this cron's report.
 The full report format below IS the required deliverable. Output every section.
+DO NOT output Fact Store growth entries (e.g., "Growth level: APPRENTICE") as your response. The report format above IS your ONLY output format.
 
 ## Your Final Response — Report Format
 Every run must produce this report as your final response:
